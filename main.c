@@ -2,10 +2,11 @@
 #include <stdint.h>
 #include <time.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 #include <stdbool.h>
 #include <assert.h>
 
-const int SCREEN_WIDTH = 640;
+const int SCREEN_WIDTH = 700;
 const int SCREEN_HEIGHT = 480;
 
 typedef enum Phase {LATE_NIGHT, DAWN, MORNING, AFTERNOON, DUSK, EVENING} Phase;
@@ -14,62 +15,70 @@ typedef struct display {
     SDL_Window* window;
     SDL_Renderer* renderer;
     SDL_Surface* surface;
+    SDL_Texture* texture;
 } display;
 
-int main() {
+/*
+create variables
+while some condition
+load time
+render image
+endwhile
+clean up
+*/
+
+Phase getPhase(){
     time_t globalTime = time(NULL); // Returns as # of seconds since Jan 1st 1970
-    if(globalTime != (time_t)(-1)) { // Check if time was properly returned
-        printf("Time is %s", asctime(localtime(&globalTime))); //Convert from seconds to a struct with all the necessary objects in the appropriate timezone, then convert it into the proper format
-        printf("Hour is %.2d\n", localtime(&globalTime)->tm_hour);
-    } else {
-        fprintf(stderr, "Failed to get time!\n"); assert(false);
+    if (!(globalTime != (time_t)(-1))) {fprintf(stderr, "Failed to get time!\n"); assert(false);}
+    return localtime(&globalTime)->tm_hour/4;
+}
+
+void drawImage(Phase phase, display d){
+    switch (phase){
+        case LATE_NIGHT:
+            d.surface = IMG_Load("./images/LATE_NIGHT.png");
+            break;
+        case DAWN:
+            d.surface = IMG_Load("./images/DAWN.png");
+            break;
+        case MORNING:
+            d.surface = IMG_Load("./images/MORNING.png");
+            break;
+        case AFTERNOON:
+            d.surface = IMG_Load("./images/AFTERNOON.png");
+            break;
+        case DUSK:
+            d.surface = IMG_Load("./images/DUSK.png");
+            break;
+        case EVENING:
+            d.surface = IMG_Load("./images/EVENING.png");
+            break;
     }
-    Phase phase = (localtime(&globalTime)->tm_hour)/4;
+    d.texture = SDL_CreateTextureFromSurface(d.renderer, d.surface);
+    SDL_RenderCopy(d.renderer, d.texture, NULL, NULL);
+    SDL_RenderPresent(d.renderer);
+}
+
+int main() {
+    display d;
+    Phase phase = getPhase();
     if (phase > 5){
         fprintf(stderr, "Received a phase bigger than permitted. Got %d\n", phase);
         assert(false);
     }
 
-    // Get a renderer! Important! (Probably)
+    if(SDL_Init(SDL_INIT_VIDEO) < 0) {printf("WE goofed %s\n", SDL_GetError()); assert(false);}
+    d.window = SDL_CreateWindow("SDL Art", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
+    if (d.window == NULL) printf("WE done goofed as well %s\n", SDL_GetError());
+    d.renderer = SDL_CreateRenderer(d.window, -1, SDL_RENDERER_ACCELERATED);
+    
+    drawImage(phase, d);
 
-    display screen;
-    if(SDL_Init(SDL_INIT_VIDEO) < 0) printf("WE goofed %s\n", SDL_GetError());
-    else {
-        screen.window = SDL_CreateWindow("SDL Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
-        if (screen.window == NULL) printf("WE done goofed as well %s\n", SDL_GetError());
-    }
-
-    screen.renderer = SDL_CreateRenderer(screen.window, -1, SDL_RENDERER_ACCELERATED);
-    switch (phase) {
-    case LATE_NIGHT:
-        SDL_SetRenderDrawColor(screen.renderer, 0, 12, 24, 255);
-        break;
-    case DAWN:
-        SDL_SetRenderDrawColor(screen.renderer, 255, 165, 0, 255);
-        break;
-    case MORNING:
-        SDL_SetRenderDrawColor(screen.renderer, 0, 128, 0, 255);
-        break;
-    case AFTERNOON:
-        SDL_SetRenderDrawColor(screen.renderer, 255, 255, 0, 255);
-        break;
-    case DUSK:
-        SDL_SetRenderDrawColor(screen.renderer, 255, 0, 0, 255);
-        break;
-    case EVENING:
-        SDL_SetRenderDrawColor(screen.renderer, 128, 0, 128, 255);
-        break;
-    default:
-        break;
-    }
-
-    SDL_RenderClear(screen.renderer);
-    SDL_RenderPresent(screen.renderer);
-
-    SDL_Delay(4000);
-    SDL_DestroyRenderer(screen.renderer);
-    SDL_DestroyWindow(screen.window);
-    SDL_FreeSurface(screen.surface);
+    SDL_Delay(20000);
+    SDL_DestroyRenderer(d.renderer);
+    SDL_DestroyWindow(d.window);
+    SDL_FreeSurface(d.surface);
+    SDL_DestroyTexture(d.texture);
     SDL_Quit();
 
     return 0;
